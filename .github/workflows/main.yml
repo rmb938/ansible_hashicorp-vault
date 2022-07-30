@@ -21,3 +21,5 @@ jobs:
       - name: Run Ansible
         run: |
           ansible-playbook -i hosts site.yaml
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
