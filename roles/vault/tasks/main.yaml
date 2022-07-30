@@ -1,0 +1,62 @@
+- name: INSTALL UTILS
+  dnf:
+    name:
+      - htop
+      - vim
+      - net-tools
+    state: latest
+
+- name: ADD VAULT REPO
+  yum_repository:
+    name: hashicorp
+    description: Hashicorp Stable - $basearch
+    baseurl: https://rpm.releases.hashicorp.com/fedora/$releasever/$basearch/stable
+    enabled: true
+    gpgcheck: true
+    gpgkey: https://rpm.releases.hashicorp.com/gpg
+
+- name: INSTALL VAULT
+  dnf:
+    name:
+      - vault
+    state: latest
+
+- name: SETUP VAULT CONFIG
+  template:
+    src: etc_vault.d_vault.hcl.j2
+    dest: /etc/vault.d/vault.hcl
+    owner: vault
+    group: vault
+    mode: "0644"
+
+- name: MAKE VAULT SSL DIRECTORY
+  file:
+    path: /var/ssl/vault/
+    state: directory
+
+- name: PLACE TAILSCALE VAULT CERT TIMER
+  template:
+    src: etc_systemd_system_tailscale-cert-vault.timer.j2
+    dest: /etc/systemd/system/tailscale-cert-vault.timer
+
+- name: PLACE TAILSCALE VAULT CERT SERVICE
+  template:
+    src: etc_systemd_system_tailscale-cert-vault.service.j2
+    dest: /etc/systemd/system/tailscale-cert-vault.service
+
+- name: ENABLE AND START TAILSCALE VAULT CERT TIMER
+  systemd:
+    name: tailscale-cert-vault.timer
+    state: started
+    enabled: true
+
+- name: RUN TAILSCALE VAULT CERT SERVICE ONCE
+  systemd:
+    name: tailscale-cert-vault.service
+    state: started
+
+- name: START VAULT
+  systemd:
+    name: vault
+    state: restarted
+    enabled: true

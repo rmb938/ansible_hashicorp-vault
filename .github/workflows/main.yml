@@ -1,0 +1,21 @@
+name: Ansible Run
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  run:
+    name: Ansible Run
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tailscale
+        uses: tailscale/github-action@v1
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          version: 1.28.0
+
+      - name: Run Ansible
+        run: |
+          ansible-playbook -i hosts site.yaml

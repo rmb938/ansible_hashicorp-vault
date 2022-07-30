@@ -1,0 +1,11 @@
+- hosts: all
+  remote_user: rbelgrave
+  become: true
+  vars:
+    vault_api_domain: hashicorp-vault.tailnet-047c.ts.net
+    vault_gcs_bucket: rmb-lab-hashicorp-vault
+    vault_gcpckms_project: rmb-lab
+    vault_gcpckms_key_ring: hashicorp-vault
+    vault_gcpckms_crypto_key: hashicorp-vault
+  roles:
+    - vault
