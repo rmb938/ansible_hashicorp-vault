@@ -10,6 +10,8 @@ jobs:
     name: Ansible Run
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
+
       - name: Tailscale
         uses: tailscale/github-action@v1
         with:
