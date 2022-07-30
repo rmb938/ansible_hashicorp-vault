@@ -1,0 +1,12 @@
+[Unit]
+Description="Generate a tailscale cert for hashicorp vault"
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/tailscale cert --cert-file /var/ssl/vault/tls.crt --key-file /var/ssl/vault/tls.key {{ vault_api_domain }}
+ExecStart=/usr/bin/chown vault:vault /var/ssl/vault/tls.crt /var/ssl/vault/tls.key
+ExecStart=/usr/bin/chmod 0600 /var/ssl/vault/tls.crt /var/ssl/vault/tls.key
+ExecStart=-/usr/bin/systemctl reload vault
+
+[Install]
+WantedBy=multi-user.target

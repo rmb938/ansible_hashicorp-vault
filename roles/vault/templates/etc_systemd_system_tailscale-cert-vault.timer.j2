@@ -1,0 +1,9 @@
+[Unit]
+Description="Generate a tailscale cert for hashicorp vault"
+
+[Timer]
+OnBootSec=120s
+OnUnitActiveSec=1w
+
+[Install]
+WantedBy=multi-user.target
