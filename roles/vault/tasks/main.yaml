@@ -46,3 +46,9 @@
   ansible.builtin.package:
     name: vault
     state: present
+
+- name: Generate tailscale certificates
+  ansible.builtin.command:
+    cmd: /usr/bin/tailscale cert {{ inventory_hostname }}
+    chdir: /opt/vault/tls
+    creates: /opt/vault/tls/{{ inventory_hostname }}.crt
