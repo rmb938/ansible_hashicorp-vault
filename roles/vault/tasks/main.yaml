@@ -1,62 +1,48 @@
-- name: INSTALL UTILS
-  dnf:
+---
+# TODO: CIS benchmark fixing once it's released for 24.04
+
+# TODO: covert bootstrap steps to own role, see https://ruan.dev/blog/2022/04/19/publish-and-use-your-ansible-role-from-git
+## START BOOTSTRAP
+- name: Set timezone
+  community.general.timezone:
+    name: America/Chicago
+
+- name: Configure Auto Upgrades
+  ansible.builtin.template:
+    src: etc/apt/apt.conf.d/50unattended-upgrades
+    dest: /etc/apt/apt.conf.d/50unattended-upgrades
+    mode: "0644"
+  register: unattended_upgrades_50
+
+- name: Restart unattended-upgrades # noqa: no-handler
+  ansible.builtin.systemd:
+    name: unattended-upgrades
+    state: restarted
+  when: unattended_upgrades_50.changed
+
+- name: Install tools
+  ansible.builtin.package:
     name:
-      - htop
-      - vim
       - net-tools
-    state: latest
+      - htop
+    state: present
+## END BOOTSTRAP
 
-- name: ADD VAULT REPO
-  yum_repository:
-    name: hashicorp
-    description: Hashicorp Stable - $basearch
-    baseurl: https://rpm.releases.hashicorp.com/fedora/$releasever/$basearch/stable
-    enabled: true
-    gpgcheck: true
-    gpgkey: https://rpm.releases.hashicorp.com/gpg
-
-- name: INSTALL VAULT
-  dnf:
-    name:
-      - vault
-    state: latest
-
-- name: SETUP VAULT CONFIG
-  template:
-    src: etc_vault.d_vault.hcl.j2
-    dest: /etc/vault.d/vault.hcl
-    owner: vault
-    group: vault
+- name: Install Hashicorp keyring
+  ansible.builtin.get_url:
+    url: https://apt.releases.hashicorp.com/gpg
+    dest: /usr/share/keyrings/hashicorp-archive-keyring.asc
+    checksum: sha256:cafb01beac341bf2a9ba89793e6dd2468110291adfbb6c62ed11a0cde6c09029
     mode: "0644"
 
-- name: MAKE VAULT SSL DIRECTORY
-  file:
-    path: /var/ssl/vault/
-    state: directory
+- name: Add Hashicorp repo
+  ansible.builtin.apt_repository:
+    repo: >
+      deb [arch=amd64 signed-by=/usr/share/keyrings/hashicorp-archive-keyring.asc]
+      https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main
+    state: present
 
-- name: PLACE TAILSCALE VAULT CERT TIMER
-  template:
-    src: etc_systemd_system_tailscale-cert-vault.timer.j2
-    dest: /etc/systemd/system/tailscale-cert-vault.timer
-
-- name: PLACE TAILSCALE VAULT CERT SERVICE
-  template:
-    src: etc_systemd_system_tailscale-cert-vault.service.j2
-    dest: /etc/systemd/system/tailscale-cert-vault.service
-
-- name: ENABLE AND START TAILSCALE VAULT CERT TIMER
-  systemd:
-    name: tailscale-cert-vault.timer
-    state: started
-    enabled: true
-
-- name: RUN TAILSCALE VAULT CERT SERVICE ONCE
-  systemd:
-    name: tailscale-cert-vault.service
-    state: started
-
-- name: START VAULT
-  systemd:
+- name: Install Hashicorp Vault
+  ansible.builtin.package:
     name: vault
-    state: restarted
-    enabled: true
+    state: present
