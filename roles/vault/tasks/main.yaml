@@ -28,6 +28,9 @@
     state: present
 ## END BOOTSTRAP
 
+# TODO: vault raft storage says to disable swap https://developer.hashicorp.com/vault/docs/configuration/storage/raft
+#   unsure what kind of security disk that poses if we don't disable it, we will circle back to disabling it later
+
 - name: Install Hashicorp keyring
   ansible.builtin.get_url:
     url: https://apt.releases.hashicorp.com/gpg
@@ -76,3 +79,22 @@
       {{ inventory_hostname }} &&
       /usr/bin/chown vault:vault /opt/vault/tls/{{ inventory_hostname }}.crt /opt/vault/tls/{{ inventory_hostname }}.key &&
       /usr/bin/systemctl reload vault
+
+- name: Configure Vault
+  ansible.builtin.template:
+    src: etc/vault.d/vault.hcl
+    dest: /etc/vault.d/vault.hcl
+    mode: "0644"
+  register: vault_config
+
+- name: Start and enable Vault
+  ansible.builtin.systemd:
+    name: vault
+    state: started
+    enabled: true
+
+- name: Restart vault if config changed # noqa: no-handler
+  ansible.builtin.systemd:
+    name: vault
+    state: restarted
+  when: vault_config.changed
