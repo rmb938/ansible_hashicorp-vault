@@ -49,6 +49,30 @@
 
 - name: Generate tailscale certificates
   ansible.builtin.command:
-    cmd: /usr/bin/tailscale cert {{ inventory_hostname }}
-    chdir: /opt/vault/tls
+    cmd: >
+      /usr/bin/tailscale cert
+      --cert-file /opt/vault/tls/{{ inventory_hostname }}.crt
+      --key-file /opt/vault/tls/{{ inventory_hostname }}.key
+      {{ inventory_hostname }}
     creates: /opt/vault/tls/{{ inventory_hostname }}.crt
+
+- name: Own tailscale certificates to vault
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: vault
+    group: vault
+  with_items:
+    - "/opt/vault/tls/{{ inventory_hostname }}.crt"
+    - "/opt/vault/tls/{{ inventory_hostname }}.key"
+
+- name: Cronjob to renew tailscale certificates
+  ansible.builtin.cron:
+    name: Renew tailscale Vault certificates
+    special_time: daily
+    job: >
+      /usr/bin/tailscale cert
+      --cert-file /opt/vault/tls/{{ inventory_hostname }}.crt
+      --key-file /opt/vault/tls/{{ inventory_hostname }}.key
+      {{ inventory_hostname }} &&
+      /usr/bin/chown vault:vault /opt/vault/tls/{{ inventory_hostname }}.crt /opt/vault/tls/{{ inventory_hostname }}.key &&
+      /usr/bin/systemctl reload vault
