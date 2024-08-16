@@ -1,33 +1,4 @@
 ---
-# TODO: CIS benchmark fixing once it's released for 24.04
-
-# TODO: covert bootstrap steps to own role, see https://ruan.dev/blog/2022/04/19/publish-and-use-your-ansible-role-from-git
-## START BOOTSTRAP
-- name: Set timezone
-  community.general.timezone:
-    name: America/Chicago
-
-- name: Configure Auto Upgrades
-  ansible.builtin.template:
-    src: etc/apt/apt.conf.d/50unattended-upgrades
-    dest: /etc/apt/apt.conf.d/50unattended-upgrades
-    mode: "0644"
-  register: unattended_upgrades_50
-
-- name: Restart unattended-upgrades # noqa: no-handler
-  ansible.builtin.systemd:
-    name: unattended-upgrades
-    state: restarted
-  when: unattended_upgrades_50.changed
-
-- name: Install tools
-  ansible.builtin.package:
-    name:
-      - net-tools
-      - htop
-    state: present
-## END BOOTSTRAP
-
 # TODO: vault raft storage says to disable swap https://developer.hashicorp.com/vault/docs/configuration/storage/raft
 #   unsure what kind of security disk that poses if we don't disable it, we will circle back to disabling it later
 

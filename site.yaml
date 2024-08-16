@@ -1,3 +1,11 @@
+- name: Bootstrap
+  hosts: all
+  become: true
+  vars:
+    fluentbit_additional_inputs: []
+  roles:
+    - rmb938.bootstrap
+
 - name: Hashicorp Vault
   hosts: all
   become: true
