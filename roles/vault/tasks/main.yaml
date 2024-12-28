@@ -1,7 +1,4 @@
 ---
-# TODO: vault raft storage says to disable swap https://developer.hashicorp.com/vault/docs/configuration/storage/raft
-#   unsure what kind of security disk that poses if we don't disable it, we will circle back to disabling it later
-
 - name: Install Hashicorp keyring
   ansible.builtin.get_url:
     url: https://apt.releases.hashicorp.com/gpg
