@@ -1,8 +1,6 @@
 - name: Bootstrap
   hosts: all
   become: true
-  vars:
-    step_ca_url: https://cuboid-topi.rmb1993-gmail-com.ca.smallstep.com
   roles:
     - rmb938.bootstrap
 
