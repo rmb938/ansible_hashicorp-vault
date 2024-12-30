@@ -9,3 +9,9 @@
   become: true
   roles:
     - vault
+
+- name: Init Vault
+  hosts: init_server
+  become: true
+  roles:
+    - init

@@ -1,6 +1,17 @@
 ---
 # TODO: vault raft storage says to disable swap https://developer.hashicorp.com/vault/docs/configuration/storage/raft
 #   unsure what kind of security disk that poses if we don't disable it, we will circle back to disabling it later
+- name: Install TPM2 Tools & Libs
+  ansible.builtin.package:
+    name:
+      - libtss2-dev
+      - tpm2-tools
+    state: present
+
+- name: Setup SystemD Creds With Host+TPM2
+  ansible.builtin.command: "systemd-creds setup --with-key=host+tpm2"
+  args:
+    creates: "/var/lib/systemd/credential.secret"
 
 - name: Install Hashicorp keyring
   ansible.builtin.get_url:
@@ -40,6 +51,12 @@
     - "crt"
     - "crt.key"
 
+- name: Create step certs systemd override folder
+  ansible.builtin.file:
+    path: /etc/systemd/system/step-cert-renewer.service.d/
+    state: directory
+    mode: "0755"
+
 - name: Step cert renewer systemd Override
   ansible.builtin.template:
     src: etc/systemd/system/step-cert-renewer.service.d/override.conf
@@ -51,6 +68,24 @@
   ansible.builtin.systemd:
     daemon_reload: true
   when: cert_renewer_systemd_override.changed
+
+- name: Create vault systemd override folder
+  ansible.builtin.file:
+    path: /etc/systemd/system/vault.service.d/
+    state: directory
+    mode: "0755"
+
+- name: Vault systemd Override
+  ansible.builtin.template:
+    src: etc/systemd/system/vault.service.d/override.conf
+    dest: /etc/systemd/system/vault.service.d/override.conf
+    mode: "0644"
+  register: vault_systemd_override
+
+- name: Reload vault systemd # noqa: no-handler
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: vault_systemd_override.changed
 
 - name: Configure Vault
   ansible.builtin.template:
@@ -69,4 +104,4 @@
   ansible.builtin.systemd:
     name: vault
     state: restarted
-  when: vault_config.changed
+  when: vault_config.changed or vault_systemd_override.changed

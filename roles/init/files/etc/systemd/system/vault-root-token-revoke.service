@@ -1,0 +1,17 @@
+[Unit]
+Description=Vault Root Token Revoke
+After=network-online.target
+
+ConditionFileNotEmpty=/root/.vault-token
+
+[Service]
+Type=oneshot
+User=root
+
+Environment=VAULT_ADDR="unix:///run/vault/vault.sock"
+
+ExecStart=/usr/bin/vault token revoke -self
+ExecStart=/usr/bin/rm -rf /root/.vault-token
+
+[Install]
+WantedBy=multi-user.target

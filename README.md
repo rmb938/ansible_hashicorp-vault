@@ -18,40 +18,27 @@ Ansible to Install [Hashicorp Vault](https://www.vaultproject.io/) on Ubuntu
 ansible-playbook -i hosts site.yaml -v --diff
 ```
 
-## Init & Unseal
+## Init
 
-This ansible currently does not initialize Vault server.
+This ansible will automatically initialize the Vault Cluster.
 
-For detailed information on how to initialize Vault here https://developer.hashicorp.com/vault/docs/commands/operator/init
+## Auto Unseal
 
-### Init
+This ansible sets up a form of auto unseal using a TPM2 and host key.
 
-Run the following command, change key-shares and key-threshold as needed.
+The host+tpm2 encrypted file is located at `/etc/vault.d/vault-init.json.enc` on the `init_server` with the unseal keys.
 
-`vault operator init -recovery-shares=3 -recovery-threshold=2`
+If you need to decrypt the file manually run `systemd-creds decrypt /etc/vault.d/vault-init.json.enc -`.
 
-Save and distribute the unseal keys.
+If you need to prevent the decryption to revoke the auto-unseal run `tpm2_clear`.
 
-Once Vault is initialized it is best pratice to revoke the initial root token using the following commands
+Every 5 minutes the `vault-unseal` service will run to make sure all Vault servers are unsealed.
 
-```bash
-vault login
-vault token revoke -self
-```
+## Root Token Generation
 
-### Generate Root Token
+Root tokens should only be used and generated on the `init_server`.
 
-To generate a new root token run the following commands
+You can generate a root token and login by running `vault-root-login`.
+Running this command more then once will revoke the previous root token
 
-```bash
-vault operator generate-root -init
-vault operator generate-root -nonce=${NONCE_VALUE}
-vault operator generate-root -decode=${ENCODED_TOKEN} -otp=${NONCE_OTP}
-```
-
-Once you are done with the root token you can revoke it with the following commands
-
-```bash
-vault login
-vault token revoke -self
-```
+Root tokens generated in this manner will automatically be revoked every 1 hour.

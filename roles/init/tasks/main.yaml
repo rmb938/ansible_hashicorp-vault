@@ -1,0 +1,92 @@
+- name: Initialize Vault
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      vault operator init -format=json -key-shares=1 -key-threshold=1 | systemd-creds --with-key=host+tpm2 encrypt - /etc/vault.d/vault-init.json.enc
+  environment:
+    VAULT_ADDR: "unix:///run/vault/vault.sock"
+  args:
+    creates: "/etc/vault.d/vault-init.json.enc"
+    executable: /bin/bash
+
+- name: Unseal Vault
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      systemd-creds decrypt /etc/vault.d/vault-init.json.enc | jq .unseal_keys_b64[0] -r | vault write sys/unseal key=-
+  args:
+    executable: /bin/bash
+  environment:
+    VAULT_ADDR: "unix:///run/vault/vault.sock"
+  changed_when: false
+
+# Login with root token, it will be auto revoked later
+- name: Login With Root Token
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      systemd-creds decrypt /etc/vault.d/vault-init.json.enc - | jq .root_token -r | vault login -no-print -
+  args:
+    executable: /bin/bash
+  environment:
+    VAULT_ADDR: "unix:///run/vault/vault.sock"
+  changed_when: vault_login.rc == 0
+  register: vault_login
+  failed_when: vault_login.rc != 0 and 'invalid token' not in vault_login.stderr
+
+- name: Copy vault-root-login script
+  ansible.builtin.copy:
+    src: usr/local/bin/vault-root-login
+    dest: /usr/local/bin/vault-root-login
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Place Vault Root Revoke Timer
+  ansible.builtin.copy:
+    src: etc/systemd/system/vault-root-token-revoke.timer
+    dest: /etc/systemd/system/vault-root-token-revoke.timer
+    mode: "0644"
+  register: vault_root_token_revoke_service_template
+
+- name: Place Vault Root Revoke Service
+  ansible.builtin.copy:
+    src: etc/systemd/system/vault-root-token-revoke.service
+    dest: /etc/systemd/system/vault-root-token-revoke.service
+    mode: "0644"
+  register: vault_root_token_revoke_timer_template
+
+- name: Place Vault Unseal Timer
+  ansible.builtin.copy:
+    src: etc/systemd/system/vault-unseal.timer
+    dest: /etc/systemd/system/vault-unseal.timer
+    mode: "0644"
+  register: vault_unseal_timer_template
+
+- name: Place Vault Unseal Service
+  ansible.builtin.template:
+    src: etc/systemd/system/vault-unseal.service
+    dest: /etc/systemd/system/vault-unseal.service
+    mode: "0644"
+  register: vault_unseal_service_template
+
+- name: Reload SystemD # noqa: no-handler
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: >
+    vault_root_token_revoke_service_template.changed or
+    vault_root_token_revoke_timer_template.changed or
+    vault_unseal_service_template.changed or
+    vault_unseal_timer_template.changed
+
+- name: Enable and start the revoke timer
+  ansible.builtin.systemd_service:
+    name: vault-root-token-revoke.timer
+    state: started
+    enabled: true
+
+- name: Enable and start the unseal timer
+  ansible.builtin.systemd_service:
+    name: vault-unseal.timer
+    state: started
+    enabled: true

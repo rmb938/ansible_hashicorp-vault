@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# {{ ansible_managed }}
+
+set -uo pipefail
+
+if [ "$EUID" -ne 0 ]
+  then echo "Please run as root"
+  exit 1
+fi
+
+vault_root_login_lockfile="/run/vault/root-login.lock"
+
+if flock -n "$vault_root_login_lockfile" -c "echo $$ > $vault_root_login_lockfile"; then
+    export VAULT_ADDR="unix:///run/vault/vault.sock"
+
+    if [ -f /root/.vault-token ]; then
+      vault token revoke -self # make sure the current token is revoked first
+    fi
+
+    # Start the generation
+    init=$(vault operator generate-root -init -format=json)
+    nonce=`echo ${init} | jq .nonce -r`
+    otp=`echo ${init} | jq .otp -r`
+
+    systemd-creds decrypt /etc/vault.d/vault-init.json.enc - | jq .unseal_keys_b64[0] -r | vault operator generate-root -format=json -nonce=${nonce} - \
+      | jq .encoded_token -r | vault operator generate-root -decode=- -otp=${otp} | vault login -
+
+    # Release the lock
+    rm "$vault_root_login_lockfile"
+else
+    echo "Another instance of the script is already running."
+fi

@@ -8,12 +8,18 @@ disable_mlock = true
 default_lease_ttl = "7d"
 
 storage "raft" {
-  path = "/opt/vault/data"
+  path    = "/opt/vault/data"
   node_id = "{{ ansible_fqdn }}"
 
   retry_join {
     leader_api_addr = "https://hashi-vault.haproxy.rmb938.me"
   }
+}
+
+# Unix Socket for local connections sicne we can't make a 127.0.0.1 cert
+# VAULT_ADDR=unix:///run/vault/vault.sock
+listener "unix" {
+  address = "/run/vault/vault.sock"
 }
 
 listener "tcp" {
@@ -42,5 +48,5 @@ listener "tcp" {
 
 telemetry {
   prometheus_retention_time = "60s"
-  disable_hostname = true
+  disable_hostname          = true
 }
