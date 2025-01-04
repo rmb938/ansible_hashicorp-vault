@@ -1,4 +1,28 @@
 ---
+- name: Create datavg
+  community.general.lvg:
+    vg: data
+    pvs: /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi1
+
+- name: Create vault lv
+  community.general.lvol:
+    vg: data
+    lv: vault
+    size: 95G
+
+- name: Format vault lv
+  community.general.filesystem:
+    fstype: xfs
+    dev: /dev/data/vault
+
+- name: Mount vault drive
+  ansible.posix.mount:
+    path: /opt/vault/data
+    src: /dev/data/vault
+    fstype: xfs
+    boot: true
+    state: mounted
+
 # TODO: vault raft storage says to disable swap https://developer.hashicorp.com/vault/docs/configuration/storage/raft
 #   unsure what kind of security disk that poses if we don't disable it, we will circle back to disabling it later
 - name: Install TPM2 Tools & Libs
@@ -32,42 +56,41 @@
     name: vault
     state: present
 
-- name: Create Vault Certificates
-  ansible.builtin.command: "step ca certificate {{ ansible_fqdn }} /etc/ssl/private/step-ca/vault.crt /etc/ssl/private/step-ca/vault.crt.key --san {{ inventory_hostname }}" # noqa: yaml[line-length]
+- name: Bootstrap step cli
+  ansible.builtin.command: >-
+    step ca bootstrap --ca-url https://step-ca-ra.rmb938.me \
+      --fingerprint eb136a5118931a2306964469705323521dda8c43d26ec67e1c5508eb123f9c70
   args:
-    creates: "/etc/ssl/private/step-ca/vault.crt"
+    creates: /etc/step/config/defaults.json
+  environment:
+    STEPPATH: /etc/step
+
+- name: Create Vault Certificates
+  ansible.builtin.command: >-
+    step ca certificate {{ ansible_fqdn }} /opt/vault/tls/vault.crt /opt/vault/tls/vault.key --san {{ inventory_hostname }}
+  args:
+    creates: "/opt/vault/tls/vault.crt"
   environment:
     STEPPATH: "/etc/step"
 
-- name: Copy Vault Certificates
-  ansible.builtin.copy:
-    remote_src: true
-    src: /etc/ssl/private/step-ca/vault.{{ item }}
-    dest: /opt/vault/tls/vault.{{ item }}
+- name: Own Vault certificates
+  ansible.builtin.file:
+    path: /opt/vault/tls/{{ item }}
     owner: vault
     group: vault
     mode: "0600"
   with_items:
-    - "crt"
-    - "crt.key"
+    - vault.crt
+    - vault.key
 
-- name: Create step certs systemd override folder
-  ansible.builtin.file:
-    path: /etc/systemd/system/step-cert-renewer.service.d/
-    state: directory
-    mode: "0755"
-
-- name: Step cert renewer systemd Override
-  ansible.builtin.template:
-    src: etc/systemd/system/step-cert-renewer.service.d/override.conf
-    dest: /etc/systemd/system/step-cert-renewer.service.d/override.conf
-    mode: "0644"
-  register: cert_renewer_systemd_override
-
-- name: Reload cert renewer systemd # noqa: no-handler
-  ansible.builtin.systemd:
-    daemon_reload: true
-  when: cert_renewer_systemd_override.changed
+- name: Cron to renew vault certificates
+  ansible.builtin.cron:
+    name: "renew vault certificates"
+    special_time: "hourly"
+    job: >-
+      STEPPATH=/etc/step step ca renew /opt/vault/tls/vault.crt /opt/vault/tls/vault.key
+      --force --mtls=false --expires-in 720h --exec "systemctl reload vault"
+    state: present
 
 - name: Create vault systemd override folder
   ansible.builtin.file:

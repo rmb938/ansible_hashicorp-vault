@@ -1,17 +1,13 @@
-- name: Bootstrap
-  hosts: all
-  become: true
-  roles:
-    - rmb938.bootstrap
-
 - name: Hashicorp Vault
   hosts: all
   become: true
+  remote_user: ubuntu
   roles:
     - vault
 
 - name: Init Vault
   hosts: init_server
   become: true
+  remote_user: ubuntu
   roles:
     - init
