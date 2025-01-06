@@ -90,3 +90,10 @@
     name: vault-unseal.timer
     state: started
     enabled: true
+
+- name: Configure Audit Logging
+  ansible.builtin.command: vault audit enable file file_path=/opt/vault/audit.log
+  environment:
+    VAULT_ADDR: "unix:///run/vault/vault.sock"
+  args:
+    creates: /opt/vault/audit.log

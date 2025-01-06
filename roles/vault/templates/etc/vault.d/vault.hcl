@@ -27,9 +27,8 @@ listener "unix" {
 listener "tcp" {
   address = "{% raw %}{{ GetInterfaceIP \"eth0\" }}{% endraw %}:8200"
 
-  tls_cert_file      = "/opt/vault/tls/vault.crt"
-  tls_key_file       = "/opt/vault/tls/vault.key"
-  tls_client_ca_file = "/opt/vault/tls/ca.crt"
+  tls_cert_file = "/opt/vault/tls/vault.crt"
+  tls_key_file  = "/opt/vault/tls/vault.key"
 
   x_forwarded_for_authorized_addrs            = ["192.168.23.49", "192.168.23.50"]
   x_forwarded_for_client_cert_header          = "X-SSL-Client-Cert"
@@ -43,9 +42,8 @@ listener "tcp" {
 listener "tcp" {
   address = "{% raw %}{{ GetInterfaceIP \"tailscale0\" }}{% endraw %}:8200"
 
-  tls_cert_file      = "/opt/vault/tls/vault.crt"
-  tls_key_file       = "/opt/vault/tls/vault.key"
-  tls_client_ca_file = "/opt/vault/tls/ca.crt"
+  tls_cert_file = "/opt/vault/tls/vault-tailscale.crt"
+  tls_key_file  = "/opt/vault/tls/vault-tailscale.key"
 }
 
 telemetry {

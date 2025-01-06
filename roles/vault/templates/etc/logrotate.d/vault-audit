@@ -1,0 +1,15 @@
+## {{ ansible_managed }}
+
+/opt/vault/audit.log {
+    weekly
+    rotate 5
+    size 100M
+    compress
+    delaycompress
+    notifempty
+    missingok
+    postrotate
+        /usr/bin/systemctl reload vault
+    endscript
+    dateext
+}
