@@ -49,11 +49,20 @@
     mode: "0644"
   register: fluentbit_parser_vault_audit
 
+- name: Place fluentbit filter for vault audit
+  ansible.builtin.template:
+    src: etc/fluent-bit-filters.d/50_vault-audit.conf
+    dest: /etc/fluent-bit-filters.d/50_vault-audit.conf
+    owner: root
+    group: root
+    mode: "0644"
+  register: fluentbit_filter_vault_audit
+
 - name: Restart fluentbit # noqa: no-handler
   ansible.builtin.systemd:
     name: fluent-bit
     state: restarted
-  when: fluentbit_input_vault_audit.changed or fluentbit_parser_vault_audit.changed
+  when: fluentbit_input_vault_audit.changed or fluentbit_parser_vault_audit.changed or fluentbit_filter_vault_audit.changed
 
 # TODO: vault raft storage says to disable swap https://developer.hashicorp.com/vault/docs/configuration/storage/raft
 #   unsure what kind of security disk that poses if we don't disable it, we will circle back to disabling it later
@@ -88,22 +97,16 @@
     name: vault
     state: present
 
-- name: Bootstrap step cli
-  ansible.builtin.command: >-
-    step ca bootstrap --ca-url https://step-ca-ra.us-homelab1.hl.rmb938.me \
-      --fingerprint eb136a5118931a2306964469705323521dda8c43d26ec67e1c5508eb123f9c70
-  args:
-    creates: /etc/step/config/defaults.json
-  environment:
-    STEPPATH: /etc/step
-
 - name: Create Vault Certificates
   ansible.builtin.command: >-
-    step ca certificate {{ ansible_fqdn }} /opt/vault/tls/vault.crt /opt/vault/tls/vault.key
+    step ca certificate {{ ansible_fqdn }}
+    /opt/vault/tls/vault.crt
+    /opt/vault/tls/vault.key
+    --san {{ inventory_hostname }}
+    --ca-url https://step-ca.us-homelab1.hl.rmb938.me:8443
+    --root /usr/local/share/ca-certificates/smallstep-homelab-prod.crt
   args:
     creates: "/opt/vault/tls/vault.crt"
-  environment:
-    STEPPATH: "/etc/step"
 
 - name: Own Vault certificates
   ansible.builtin.file:
@@ -120,35 +123,11 @@
     name: "renew vault certificates"
     special_time: "hourly"
     job: >-
-      STEPPATH=/etc/step step ca renew /opt/vault/tls/vault.crt /opt/vault/tls/vault.key
+      step ca renew /opt/vault/tls/vault.crt
+      /opt/vault/tls/vault.key
+      --ca-url https://step-ca.us-homelab1.hl.rmb938.me:8443
+      --root /usr/local/share/ca-certificates/smallstep-homelab-prod.crt
       --force --mtls=false --expires-in 720h --exec "systemctl reload vault"
-    state: present
-
-- name: Create Vault TS Certificates
-  ansible.builtin.command: >-
-    tailscale cert --cert-file /opt/vault/tls/vault-tailscale.crt --key-file /opt/vault/tls/vault-tailscale.key {{ inventory_hostname }}
-  args:
-    creates: "/opt/vault/tls/vault-tailscale.crt"
-
-- name: Own Vault TS certificates
-  ansible.builtin.file:
-    path: /opt/vault/tls/{{ item }}
-    owner: vault
-    group: vault
-    mode: "0600"
-  with_items:
-    - vault-tailscale.crt
-    - vault-tailscale.key
-
-- name: Cron to renew vault TS certificates
-  ansible.builtin.cron:
-    name: "renew vault TS certificates"
-    special_time: "daily"
-    job: >-
-      tailscale cert --min-validity 720h --cert-file /opt/vault/tls/vault-tailscale.crt
-      --key-file /opt/vault/tls/vault-tailscale.key {{ inventory_hostname }} &&
-      chown vault:vault /opt/vault/tls/vault-tailscale.crt /opt/vault/tls/vault-tailscale.key &&
-      systemctl reload vault
     state: present
 
 - name: Create vault systemd override folder

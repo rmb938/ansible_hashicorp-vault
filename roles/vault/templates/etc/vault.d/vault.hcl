@@ -42,8 +42,8 @@ listener "tcp" {
 listener "tcp" {
   address = "{% raw %}{{ GetInterfaceIP \"tailscale0\" }}{% endraw %}:8200"
 
-  tls_cert_file = "/opt/vault/tls/vault-tailscale.crt"
-  tls_key_file  = "/opt/vault/tls/vault-tailscale.key"
+  tls_cert_file = "/opt/vault/tls/vault.crt"
+  tls_key_file  = "/opt/vault/tls/vault.key"
 }
 
 telemetry {
