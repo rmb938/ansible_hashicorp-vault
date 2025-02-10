@@ -123,7 +123,7 @@
     name: "renew vault certificates"
     special_time: "hourly"
     job: >-
-      step ca renew /opt/vault/tls/vault.crt
+      step ca rekey /opt/vault/tls/vault.crt
       /opt/vault/tls/vault.key
       --ca-url https://step-ca.us-homelab1.hl.rmb938.me:8443
       --root /usr/local/share/ca-certificates/smallstep-homelab-prod.crt
