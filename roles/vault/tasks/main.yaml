@@ -122,12 +122,14 @@
   ansible.builtin.cron:
     name: "renew vault certificates"
     special_time: "hourly"
+    # Rekey needs to happen against the CA, RA's don't support rekey
+    # https://smallstep.com/docs/step-ca/registration-authority-ra-mode/#stepcas-limitations
     job: >-
       step ca rekey /opt/vault/tls/vault.crt
       /opt/vault/tls/vault.key
-      --ca-url https://step-ca.us-homelab1.hl.rmb938.me:8443
+      --ca-url https://step-ca.us-homelab1.hl.rmb938.me
       --root /usr/local/share/ca-certificates/smallstep-homelab-prod.crt
-      --force --mtls=false --expires-in 720h --exec "systemctl reload vault"
+      --force --expires-in 720h --exec "systemctl reload vault"
     state: present
 
 - name: Create vault systemd override folder
