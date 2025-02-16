@@ -1,6 +1,6 @@
 [init_server]
-hl-us-homelab1-hashi-vault-1.tailnet-047c.ts.net
+hashi-vault-1.us-homelab1.hl.rmb938.me
 
 [vault_servers]
-hl-us-homelab1-hashi-vault-2.tailnet-047c.ts.net
-hl-us-homelab1-hashi-vault-3.tailnet-047c.ts.net
+hashi-vault-2.us-homelab1.hl.rmb938.me
+hashi-vault-3.us-homelab1.hl.rmb938.me
