@@ -9,7 +9,7 @@
     creates: "/etc/vault.d/vault-init.json.enc"
     executable: /bin/bash
 
-- name: Unseal Vault
+- name: Unseal local Vault
   ansible.builtin.shell:
     cmd: |
       set -o pipefail
@@ -19,6 +19,18 @@
   environment:
     VAULT_ADDR: "unix:///run/vault/vault.sock"
   changed_when: false
+
+- name: Unseal remove Vaults
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      systemd-creds decrypt /etc/vault.d/vault-init.json.enc | jq .unseal_keys_b64[0] -r | vault write sys/unseal key=-
+  args:
+    executable: /bin/bash
+  environment:
+    VAULT_ADDR: "https://{{ item }}:8200"
+  changed_when: false
+  with_items: "{{ groups['vault_servers'] }}"
 
 # Login with root token, it will be auto revoked later
 - name: Login With Root Token
