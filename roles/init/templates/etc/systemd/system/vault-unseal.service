@@ -9,9 +9,9 @@ Type=oneshot
 User=root
 
 # Using sh -c and pipes instead of LoadEncryptedCredential because I don't want the unencrypted saved to disk
-ExecStart=/bin/sh -c 'systemd-creds decrypt /etc/vault.d/vault-init.json.enc | jq .unseal_keys_b64[0] -r | VAULT_ADDR="unix:///run/vault/vault.sock" vault write sys/unseal key=-'
+ExecStart=/bin/sh -c 'systemd-creds decrypt /etc/vault.d/vault-init.json.enc | jq .unseal_keys_b64[0] -r | VAULT_ADDR="unix:///run/vault/vault.sock" vault write -format=json sys/unseal key=- | jq -c'
 {% for host in groups['vault_servers'] %}
-ExecStart=/bin/sh -c 'systemd-creds decrypt /etc/vault.d/vault-init.json.enc | jq .unseal_keys_b64[0] -r | VAULT_ADDR="https://{{ hostvars[host]['ansible_facts']['fqdn'] }}:8200" vault write sys/unseal key=-'
+ExecStart=/bin/sh -c 'systemd-creds decrypt /etc/vault.d/vault-init.json.enc | jq .unseal_keys_b64[0] -r | VAULT_ADDR="https://{{ hostvars[host]['ansible_facts']['fqdn'] }}:8200" vault write -format=json sys/unseal key=- | jq -c'
 {% endfor %}
 
 [Install]
