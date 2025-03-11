@@ -8,29 +8,37 @@
   args:
     creates: "/etc/vault.d/vault-init.json.enc"
     executable: /bin/bash
+  register: vault_init
+
+- name: Pause for 1 minute for Vaults to sync init status # noqa: no-handler
+  ansible.builtin.pause:
+    minutes: 1
+  when: vault_init.changed
 
 - name: Unseal local Vault
   ansible.builtin.shell:
     cmd: |
       set -o pipefail
-      systemd-creds decrypt /etc/vault.d/vault-init.json.enc | jq .unseal_keys_b64[0] -r | vault write sys/unseal key=-
+      systemd-creds decrypt /etc/vault.d/vault-init.json.enc | jq .unseal_keys_b64[0] -r | vault write -format=json sys/unseal key=-
   args:
     executable: /bin/bash
   environment:
     VAULT_ADDR: "unix:///run/vault/vault.sock"
-  changed_when: false
+  changed_when: "'sealed\": false' not in unseal_local_vault.stdout"
+  register: unseal_local_vault
 
-- name: Unseal remove Vaults
+- name: Unseal remote Vaults
   ansible.builtin.shell:
     cmd: |
       set -o pipefail
-      systemd-creds decrypt /etc/vault.d/vault-init.json.enc | jq .unseal_keys_b64[0] -r | vault write sys/unseal key=-
+      systemd-creds decrypt /etc/vault.d/vault-init.json.enc | jq .unseal_keys_b64[0] -r | vault write -format=json sys/unseal key=-
   args:
     executable: /bin/bash
   environment:
     VAULT_ADDR: "https://{{ item }}:8200"
-  changed_when: false
+  changed_when: "'sealed\": false' not in unseal_remote_vault.stdout"
   with_items: "{{ groups['vault_servers'] }}"
+  register: unseal_remote_vault
 
 # Login with root token, it will be auto revoked later
 - name: Login With Root Token
@@ -109,3 +117,5 @@
     VAULT_ADDR: "unix:///run/vault/vault.sock"
   args:
     creates: /opt/vault/audit.log
+  failed_when: vault_audit_log.rc != 0 and 'path already in use' not in vault_audit_log.stderr
+  register: vault_audit_log
