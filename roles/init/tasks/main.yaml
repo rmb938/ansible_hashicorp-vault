@@ -40,6 +40,11 @@
   with_items: "{{ groups['vault_servers'] }}"
   register: unseal_remote_vault
 
+- name: Pause for 1 minute for Vaults to sync unseal status # noqa: no-handler
+  ansible.builtin.pause:
+    minutes: 1
+  when: unseal_local_vault.changed or unseal_remote_vault.changed
+
 # Login with root token, it will be auto revoked later
 - name: Login With Root Token
   ansible.builtin.shell:
